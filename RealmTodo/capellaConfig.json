@@ -1,0 +1,4 @@
+{
+  "endpointUrl": "wss://xxxxx.apps.cloud.couchbase.com:4984/tasks",
+  "capellaUrl": "https://cloud.capella.com"
+}
