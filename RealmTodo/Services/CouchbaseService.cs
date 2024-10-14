@@ -67,6 +67,8 @@ namespace RealmTodo.Services
             _taskCollection?.Save(mutableDocument);
         }
 
+
+
         /// <summary>
         /// Deletes a task from the Couchbase collection.
         /// </summary>
@@ -88,89 +90,7 @@ namespace RealmTodo.Services
             }
         }
 
-        /// <summary>
-        /// Retrieves the task list from the Couchbase collection and invokes the provided callback function with the results.
-        /// </summary>
-        /// <param name="subscriptionType">The type of subscription to determine which tasks to query (Mine or All).</param>
-        /// <param name="callback">The callback function to be invoked with the results of the query.</param>
-        /// <remarks>
-        /// This method sets up a query listener based on the provided <paramref name="subscriptionType"/>.
-        /// It processes the query results to determine initial results, insertions, updates, and deletions,
-        /// and then invokes the callback function with the appropriate results.
-        /// </remarks>
-        public void GetTaskList(
-            SubscriptionType subscriptionType,
-            Action<IResultsChange<Item>> callback)
-        {
-            var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
-            _queryListenerToken = query?.AddChangeListener((sender, change) =>
-            {
-                var isInitial = _previousItems.Count == 0;
-                var initialResults = new InitialResults<Item>();
-                var updatedResults = new UpdatedResults<Item>();
 
-                // used to track the current items which will
-                // become the next previousItemMap after this is complete
-                var currentItemsMap = new Dictionary<string, Item>();
-                
-                // used to trim out items
-                // anything left over is a deletion
-                var previousItemsKeys = _previousItems.Keys.ToHashSet();
-                foreach (var row in change.Results)
-                {
-                    var json = row.GetDictionary("item")?.ToJSON();
-                    if (json == null) continue;
-                    var item = JsonSerializer.Deserialize<Item>(json);
-                    //validate serialization worked
-                    if (item == null) continue;
-                    //add item to currentMap used for filling the previousItems later
-                    currentItemsMap.Add(item.Id, item);
-                    // if it's initial, all items are insertions
-                    if (isInitial)
-                    {
-                        initialResults.List.Add(item);
-                    } else {
-                        //check to see if it's an update 
-                        if (_previousItems.TryGetValue(item.Id, out var previousItem))
-                        {
-                            if (item != previousItem)
-                            {
-                                updatedResults.Changes.Add(item);
-                            }
-                        } else {
-                            // if it's not an update, it's an insertion 
-                            updatedResults.Insertions.Add(item);
-                        }
-                        //remove the item from the previous items
-                        //required to determine deletions
-                        _previousItems.Remove(item.Id);
-                    }
-                }
-                
-                // Determine deletions
-                if (!isInitial)
-                {
-                    foreach (var previousItem in _previousItems.Values)
-                    {
-                        updatedResults.Deletions.Add(previousItem);
-                    }
-                }
-                
-                //fill the _previousItems with the current items
-                _previousItems.Clear();
-                foreach (var item in currentItemsMap)
-                {
-                    _previousItems.Add(item.Key, item.Value);
-                }
-                if (isInitial)
-                {
-                    callback(initialResults);
-                } else {
-                    callback(updatedResults);    
-                }
-            });
-        }
-        
         /// <summary>
         /// Initializes the Couchbase service by setting up logging, reading the configuration file,
         /// and deserializing the configuration into the <see cref="CouchbaseAppConfig"/> object.
@@ -278,6 +198,22 @@ namespace RealmTodo.Services
 
             _serviceInitialised = true;
         }
+
+        /// <summary>
+        /// Determines whether the specified task belongs to the current authenticated user.
+        /// </summary>
+        /// <param name="item">The task item to check ownership for.</param>
+        /// <returns>
+        /// true if the task belongs to the current authenticated user; otherwise, false.
+        /// </returns>
+        /// <remarks>
+        /// This method compares the OwnerId property of the provided <paramref name="item"/> with the
+        ///  Username property of the current authenticated user to determine ownership.
+        /// </remarks>
+        public bool IsMyTask(Item item)
+        {
+            return item.OwnerId == CurrentUser?.Username;
+        }
         
         /// <summary>
         /// Authenticates the user with the provided email and password.
@@ -336,6 +272,123 @@ namespace RealmTodo.Services
             _database = null;
         }
 
+        /// <summary>
+        /// Pauses the synchronization process for the Couchbase replicator.
+        /// </summary>
+        /// <remarks>
+        /// This method stops the Couchbase replicator, which pauses the synchronization of data
+        /// between the local database and the remote Couchbase server.
+        /// </remarks>
+        public void PauseSync()
+        {
+            _replicator?.Stop();     
+        }
+        
+        /// <summary>
+        /// Resumes the synchronization process for the Couchbase replicator.
+        /// </summary>
+        /// <remarks>
+        /// This method starts the Couchbase replicator, which resumes the synchronization of data
+        /// between the local database and the remote Couchbase server.
+        /// </remarks>
+        public void ResumeSync()
+        {
+            _replicator?.Start();    
+        }
+        
+                /// <summary>
+        /// Retrieves the task list from the Couchbase collection and invokes the provided callback function with the results.
+        /// </summary>
+        /// <param name="subscriptionType">The type of subscription to determine which tasks to query (Mine or All).</param>
+        /// <param name="callback">The callback function to be invoked with the results of the query.</param>
+        /// <remarks>
+        /// This method sets up a query listener based on the provided <paramref name="subscriptionType"/>.
+        /// It processes the query results to determine initial results, insertions, updates, and deletions,
+        /// and then invokes the callback function with the appropriate results.
+        /// </remarks>
+        public void SetTaskLiveQuery(
+            SubscriptionType subscriptionType,
+            Action<IResultsChange<Item>> callback)
+        {
+            var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
+            
+            //remove the previous listener to clean up memory
+            _queryListenerToken?.Remove();
+            _queryListenerToken = null;
+            
+            //set the listener for live query
+            _queryListenerToken = query?.AddChangeListener((sender, change) =>
+            {
+                var isInitial = _previousItems.Count == 0;
+                var initialResults = new InitialResults<Item>();
+                var updatedResults = new UpdatedResults<Item>();
+
+                // used to track the current items which will
+                // become the next previousItemMap after this is complete
+                var currentItemsMap = new Dictionary<string, Item>();
+                
+                // used to trim out items
+                // anything left over is a deletion
+                var previousItemsKeys = _previousItems.Keys.ToHashSet();
+                foreach (var row in change.Results)
+                {
+                    var json = row.GetDictionary("item")?.ToJSON();
+                    if (json == null) continue;
+                    var item = JsonSerializer.Deserialize<Item>(json);
+                    //validate serialization worked
+                    if (item == null) continue;
+                    
+                    //used to add the field that isn't serialized, but used in bindings of the UI
+                    item.IsMine = item.OwnerId == CurrentUser?.Username;
+                    
+                    //add item to currentMap used for filling the previousItems later
+                    currentItemsMap.Add(item.Id, item);
+                    // if it's initial, all items are insertions
+                    if (isInitial)
+                    {
+                        initialResults.List.Add(item);
+                    } else {
+                        //check to see if it's an update 
+                        if (_previousItems.TryGetValue(item.Id, out var previousItem))
+                        {
+                            if (item != previousItem)
+                            {
+                                updatedResults.Changes.Add(item);
+                            }
+                        } else {
+                            // if it's not an update, it's an insertion 
+                            updatedResults.Insertions.Add(item);
+                        }
+                        //remove the item from the previous items
+                        //required to determine deletions
+                        _previousItems.Remove(item.Id);
+                    }
+                }
+                
+                // Determine deletions
+                if (!isInitial)
+                {
+                    foreach (var previousItem in _previousItems.Values)
+                    {
+                        updatedResults.Deletions.Add(previousItem);
+                    }
+                }
+                
+                //fill the _previousItems with the current items
+                _previousItems.Clear();
+                foreach (var item in currentItemsMap)
+                {
+                    _previousItems.Add(item.Key, item.Value);
+                }
+                if (isInitial)
+                {
+                    callback(initialResults);
+                } else {
+                    callback(updatedResults);    
+                }
+            });
+        }
+        
         /// <summary>
         /// Toggles the completion status of a task in the Couchbase collection.
         /// </summary>

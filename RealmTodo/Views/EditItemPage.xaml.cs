@@ -1,9 +1,12 @@
-﻿namespace RealmTodo.Views;
+﻿using RealmTodo.ViewModels;
+
+namespace RealmTodo.Views;
 
 public partial class EditItemPage : ContentPage
 {
-    public EditItemPage()
+    public EditItemPage(EditItemViewModel viewModel)
     {
         InitializeComponent();
+        BindingContext = viewModel;
     }
 }

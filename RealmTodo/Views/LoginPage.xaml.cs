@@ -1,9 +1,12 @@
-﻿namespace RealmTodo.Views;
+﻿using RealmTodo.ViewModels;
+
+namespace RealmTodo.Views;
 
 public partial class LoginPage : ContentPage
 {
-    public LoginPage()
+    public LoginPage(LoginViewModel viewModel)
     {
         InitializeComponent();
+        BindingContext = viewModel;
     }
 }

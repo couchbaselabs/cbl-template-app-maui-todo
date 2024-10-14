@@ -7,18 +7,18 @@ namespace RealmTodo.ViewModels
         [ObservableProperty]
         protected bool isBusy;
 
-        protected Action currentDismissAction;
+        protected Action? CurrentDismissAction;
 
         partial void OnIsBusyChanged(bool value)
         {
             if (value)
             {
-                currentDismissAction = Services.DialogService.ShowActivityIndicator();
+                CurrentDismissAction = Services.DialogService.ShowActivityIndicator();
             }
             else
             {
-                currentDismissAction?.Invoke();
-                currentDismissAction = null;
+                CurrentDismissAction?.Invoke();
+                CurrentDismissAction = null;
             }
         }
 

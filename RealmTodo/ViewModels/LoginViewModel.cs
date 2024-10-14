@@ -3,7 +3,8 @@ using RealmTodo.Services;
 
 namespace RealmTodo.ViewModels
 {
-    public partial class LoginViewModel : BaseViewModel
+    public partial class LoginViewModel(IDatabaseService databaseService) 
+        : BaseViewModel
     {
         public string Email { get; set; } = "";
 
@@ -12,9 +13,9 @@ namespace RealmTodo.ViewModels
         [RelayCommand]
         public async Task OnAppearing()
         {
-            await CouchbaseService.Init();
+            await databaseService.Init(); 
 
-            if (CouchbaseService.CurrentUser != null)
+            if (databaseService.CurrentUser != null)
             {
                 await GoToMainPage();
             }
@@ -23,7 +24,7 @@ namespace RealmTodo.ViewModels
         [RelayCommand]
         public async Task Login()
         {
-            if (!await VeryifyEmailAndPassword())
+            if (!await VerifyEmailAndPassword())
             {
                 return;
             }
@@ -36,7 +37,7 @@ namespace RealmTodo.ViewModels
             try
             {
                 IsBusy = true;
-                await CouchbaseService.LoginAsync(Email, Password);
+                await databaseService.LoginAsync(Email, Password);
                 IsBusy = false;
             }
             catch (Exception ex)
@@ -49,15 +50,12 @@ namespace RealmTodo.ViewModels
             await GoToMainPage();
         }
 
-        private async Task<bool> VeryifyEmailAndPassword()
+        private async Task<bool> VerifyEmailAndPassword()
         {
-            if (string.IsNullOrEmpty(Email) || string.IsNullOrEmpty(Password))
-            {
-                await DialogService.ShowAlertAsync("Error", "Please specify both the email and the password", "Ok");
-                return false;
-            }
+            if (!string.IsNullOrEmpty(Email) && !string.IsNullOrEmpty(Password)) return true;
+            await DialogService.ShowAlertAsync("Error", "Please specify both the email and the password", "Ok");
+            return false;
 
-            return true;
         }
 
         private async Task GoToMainPage()

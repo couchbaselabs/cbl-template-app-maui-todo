@@ -1,3 +1,4 @@
+using RealmTodo.Data;
 using RealmTodo.Models;
 
 namespace RealmTodo.Services;
@@ -14,8 +15,12 @@ public interface IDatabaseService
     void DeleteTask(Item item);
     Task Init();
     void InitDatabase();
+    bool IsMyTask(Item item);
     Task LoginAsync(string email, string password);
     void Logout();
+    void PauseSync();
+    void ResumeSync();
+    void SetTaskLiveQuery(SubscriptionType subscriptionType, Action<IResultsChange<Item>> callback);
     void ToggleIsComplete(Item item);
 
 }

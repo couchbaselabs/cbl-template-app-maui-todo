@@ -5,27 +5,29 @@ using RealmTodo.Services;
 
 namespace RealmTodo.ViewModels
 {
-    public partial class EditItemViewModel(IDatabaseService databaseService) 
+    public partial class EditItemViewModel(IDatabaseService databaseService)
         : BaseViewModel, IQueryAttributable
     {
-        private readonly IDatabaseService _couchbaseService = databaseService; 
-        
-        [ObservableProperty]
-        private Item initialItem;
+        [ObservableProperty] private Item? initialItem;
 
-        [ObservableProperty]
-        private string summary;
+        [ObservableProperty] private string summary;
 
-        [ObservableProperty]
-        private string pageHeader;
+        [ObservableProperty] private string pageHeader;
 
         public void ApplyQueryAttributes(IDictionary<string, object> query)
         {
-            if (query.Count > 0 && query["item"] != null) // we're editing an Item
+            if (query.Count > 0 && query.TryGetValue("item", out var value)) // we're editing an Item
             {
-                InitialItem = query["item"] as Item;
-                Summary = InitialItem.Summary;
-                PageHeader = $"Modify Item {InitialItem.Id}";
+                InitialItem = value as Item;
+                if (InitialItem != null)
+                {
+                    Summary = InitialItem.Summary;
+                    PageHeader = $"Modify Item {InitialItem.Id}";
+                }
+                else
+                {
+                    throw new InvalidOperationException("Invalid item");
+                }
             }
             else // we're creating a new item
             {
@@ -37,23 +39,20 @@ namespace RealmTodo.ViewModels
         [RelayCommand]
         public async Task SaveItem()
         {
-            var realm = CouchbaseService.GetMainThreadRealm();
-            await realm.WriteAsync(() =>
+            if (InitialItem != null) // editing an item
             {
-                if (InitialItem != null) // editing an item
+                databaseService.ToggleIsComplete(InitialItem);
+            }
+            else // creating a new item
+            {
+                if (databaseService.CurrentUser == null) throw new InvalidOperationException("User not logged in");
+                var item = new Item()
                 {
-                    InitialItem.Summary = Summary;
-                }
-                else // creating a new item
-                {
-                    realm.Add(new Item()
-                    {
-                        OwnerId = CouchbaseService.CurrentUser.Id,
-                        Summary = summary
-                    });
-                }
-            });
-
+                    OwnerId = databaseService.CurrentUser.Username,
+                    Summary = Summary
+                };
+                databaseService.AddTask(item);
+            }
             await Shell.Current.GoToAsync("..");
         }
 
@@ -64,4 +63,3 @@ namespace RealmTodo.ViewModels
         }
     }
 }
-

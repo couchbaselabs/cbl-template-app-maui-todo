@@ -1,40 +1,44 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using RealmTodo.Data;
 using RealmTodo.Models;
 using RealmTodo.Services;
 
 namespace RealmTodo.ViewModels
 {
-    public partial class ItemsViewModel : BaseViewModel
+    public partial class ItemsViewModel(IDatabaseService couchbaseService)
+        : BaseViewModel
     {
-        [ObservableProperty]
+        [ObservableProperty] 
         private string connectionStatusIcon = "wifi_on.png";
 
-        [ObservableProperty]
+        [ObservableProperty] 
         private bool isShowAllTasks;
 
-        [ObservableProperty]
-        private IQueryable<Item> items;
+        [ObservableProperty] 
+        private IList<Item> items = new List<Item>();
 
-        private string currentUserId;
         private bool isOnline = true;
 
         [RelayCommand]
         public void OnAppearing()
         {
-            realm = CouchbaseService.GetMainThreadRealm();
-            currentUserId = CouchbaseService.CurrentUser.Id;
-            Items = realm.All<Item>().OrderBy(i => i.Id);
-
-            var currentSubscriptionType = CouchbaseService.GetCurrentSubscriptionType(realm);
-            IsShowAllTasks = currentSubscriptionType == SubscriptionType.All;
+            if (couchbaseService.CurrentUser != null)
+            {
+                //setup live query
+                couchbaseService.SetTaskLiveQuery(SubscriptionType.Mine, UpdateItems);
+            }
+            else
+            {
+                throw new InvalidOperationException("User is not logged in");
+            }
         }
 
         [RelayCommand]
         public async Task Logout()
         {
             IsBusy = true;
-            await CouchbaseService.LogoutAsync();
+            couchbaseService.Logout();
             IsBusy = false;
 
             await Shell.Current.GoToAsync($"//login");
@@ -53,6 +57,7 @@ namespace RealmTodo.ViewModels
             {
                 return;
             }
+
             var itemParameter = new Dictionary<string, object>() { { "item", item } };
             await Shell.Current.GoToAsync($"itemEdit", itemParameter);
         }
@@ -65,10 +70,7 @@ namespace RealmTodo.ViewModels
                 return;
             }
 
-            await realm.WriteAsync(() =>
-            {
-                realm.Remove(item);
-            });
+            couchbaseService.DeleteTask(item);
         }
 
         [RelayCommand]
@@ -78,42 +80,61 @@ namespace RealmTodo.ViewModels
 
             if (isOnline)
             {
-                realm.SyncSession.Start();
+                couchbaseService.PauseSync();
             }
             else
             {
-                realm.SyncSession.Stop();
+                couchbaseService.ResumeSync();
             }
 
             ConnectionStatusIcon = isOnline ? "wifi_on.png" : "wifi_off.png";
         }
 
-        [RelayCommand]
-        public async Task UrlTap(string url)
+        private void UpdateItems(IResultsChange<Item> resultItems)
         {
-            await Launcher.OpenAsync(DataExplorerLink);
+            switch (resultItems)
+            {
+                case InitialResults<Item> initialItems:
+                    Items.Clear();
+                    Items = initialItems.List;
+                    break;
+                case UpdatedResults<Item> updatedItems:
+                {
+                    foreach (var item in updatedItems.Insertions)
+                    {
+                        Items.Add(item);
+                    }
+
+                    foreach (var item in updatedItems.Deletions)
+                    {
+                        Items.Remove(item);
+                    }
+
+                    foreach (var item in updatedItems.Changes)
+                    {
+                    
+                        var existingItem = Items.FirstOrDefault(i => i.Id == item.Id);
+                        if (existingItem == null) continue;
+                        Items.Remove(existingItem);
+                        Items.Add(item);
+                    }
+
+                    break;
+                }
+            }
         }
 
         private async Task<bool> CheckItemOwnership(Item item)
         {
-            if (!item.IsMine)
-            {
-                await DialogService.ShowAlertAsync("Error", "You cannot modify items not belonging to you", "OK");
-                return false;
-            }
-
-            return true;
+            if (item.IsMine) return true;
+            await DialogService.ShowAlertAsync("Error", "You cannot modify items not belonging to you", "OK");
+            return false;
         }
 
         async partial void OnIsShowAllTasksChanged(bool value)
         {
-            await CouchbaseService.SetSubscription(realm, value ? SubscriptionType.All : SubscriptionType.Mine);
-
-            if (!isOnline)
-            {
-                await DialogService.ShowToast("Switching subscriptions does not affect Realm data when the sync is offline.");
-            }
+            var status =  value ? SubscriptionType.All : SubscriptionType.Mine;
+            couchbaseService.SetTaskLiveQuery(status, UpdateItems);
         }
     }
 }
-

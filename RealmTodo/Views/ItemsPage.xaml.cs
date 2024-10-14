@@ -1,9 +1,12 @@
-﻿namespace RealmTodo.Views;
+﻿using RealmTodo.ViewModels;
+
+namespace RealmTodo.Views;
 
 public partial class ItemsPage : ContentPage
 {
-	public ItemsPage()
+	public ItemsPage(ItemsViewModel viewModel)
 	{
 		InitializeComponent();
+		BindingContext = viewModel;
 	}
 }

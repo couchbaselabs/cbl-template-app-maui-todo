@@ -15,9 +15,6 @@
         <ToolbarItem Text="Change Connection Status" Order="Primary" IconImageSource="{Binding ConnectionStatusIcon}" Command="{Binding ChangeConnectionStatusCommand}" />
         <ToolbarItem Text="Logout" Order="Primary" IconImageSource="logout.png" Command="{Binding LogoutCommand}"/>
     </ContentPage.ToolbarItems>
-    <ContentPage.BindingContext>
-        <vm:ItemsViewModel />
-    </ContentPage.BindingContext>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="60" />

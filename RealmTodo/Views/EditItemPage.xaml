@@ -4,9 +4,6 @@
              x:Class="RealmTodo.Views.EditItemPage"
              xmlns:vm="clr-namespace:RealmTodo.ViewModels"
              Title="Create or Modify an Item">
-     <ContentPage.BindingContext>
-        <vm:EditItemViewModel />
-    </ContentPage.BindingContext>
      <VerticalStackLayout Padding="10" Spacing="20">
         <Label 
             Text="{Binding PageHeader}"
