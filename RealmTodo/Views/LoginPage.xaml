@@ -16,11 +16,17 @@
         Spacing="15"
         VerticalOptions="StartAndExpand">
         <Label 
-            Text="Login"
+            Text="To Do App"
             VerticalOptions="Center" 
             HorizontalOptions="Center"
             FontSize="Title"
-            Margin="0,100,0,100"/>
+            Margin="0,100,0,100">
+            <Label.GestureRecognizers>
+                <TapGestureRecognizer
+                    NumberOfTapsRequired="2"
+                    Command="{Binding FillDefaultCredentialsCommand}" />
+            </Label.GestureRecognizers>
+        </Label>
         <Entry Keyboard="Email" Placeholder="Email" Text="{Binding Email}"/>
         <Entry Keyboard="Plain" IsPassword="True" Placeholder="Password" Text="{Binding Password}"/>
         <Label Margin="5"

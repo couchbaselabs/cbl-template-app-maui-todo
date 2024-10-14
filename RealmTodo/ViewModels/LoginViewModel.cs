@@ -1,15 +1,29 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using RealmTodo.Services;
 
 namespace RealmTodo.ViewModels
 {
-    public partial class LoginViewModel(IDatabaseService databaseService) 
+    public partial class LoginViewModel 
         : BaseViewModel
     {
-        public string Email { get; set; } = "";
+        private readonly IDatabaseService databaseService;
 
-        public string Password { get; set; } = "";
+        [ObservableProperty]
+        private string email; 
 
+        [ObservableProperty]
+        private string password; 
+        
+        public ICommand FillDefaultCredentialsCommand { get; init; } 
+
+        public LoginViewModel(IDatabaseService databaseService)
+        {
+            this.databaseService = databaseService;
+            this.FillDefaultCredentialsCommand = new RelayCommand(FillDefaultCredentials);
+        }
+        
         [RelayCommand]
         public async Task OnAppearing()
         {
@@ -19,6 +33,12 @@ namespace RealmTodo.ViewModels
             {
                 await GoToMainPage();
             }
+        }
+        
+        private void FillDefaultCredentials()
+        {
+            Email = "demo1@example.com";
+            Password = "P@ssw0rd12";
         }
 
         [RelayCommand]
