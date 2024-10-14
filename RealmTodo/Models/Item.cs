@@ -1,4 +1,6 @@
-﻿using RealmTodo.Services;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization; 
+using RealmTodo.Services;
 
 namespace RealmTodo.Models
 {
@@ -8,7 +10,11 @@ namespace RealmTodo.Models
         public string OwnerId { get; init; } = string.Empty;
         public string Summary { get; init; } = string.Empty;
         public bool IsComplete { get; init; }
-        public bool IsMine => OwnerId == CouchbaseService.CurrentUser?.Username;
+
+        public string ToJson()
+        {
+            return JsonSerializer.Serialize(this);     
+        }
     }
 }
 
