@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RealmTodo.Services;
 using RealmTodo.ViewModels;
+using RealmTodo.Views;
 
 namespace RealmTodo;
 
@@ -30,6 +31,11 @@ public static class MauiProgram
         builder.Services.AddTransient <EditItemViewModel>();
         builder.Services.AddTransient <ItemsViewModel>();
         builder.Services.AddTransient <LoginViewModel>();
+        
+        //add the views
+        builder.Services.AddTransient <EditItemPage>();
+        builder.Services.AddTransient <ItemsPage>();
+        builder.Services.AddTransient <LoginPage>();
         
         return builder.Build();
     }

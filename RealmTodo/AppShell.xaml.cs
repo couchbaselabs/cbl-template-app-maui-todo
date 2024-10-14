@@ -8,6 +8,8 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
         Routing.RegisterRoute("itemEdit", typeof(EditItemPage));
+        Routing.RegisterRoute("login", typeof(LoginPage));
+        Routing.RegisterRoute("items", typeof(ItemsPage));
     }
 }
 
