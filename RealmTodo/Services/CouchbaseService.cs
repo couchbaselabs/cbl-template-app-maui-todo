@@ -1,8 +1,10 @@
 using System.Text.Json;
+
 using Couchbase.Lite;
 using Couchbase.Lite.Logging;
 using Couchbase.Lite.Query;
 using Couchbase.Lite.Sync;
+
 using RealmTodo.Data;
 using RealmTodo.Models;
 
@@ -35,7 +37,7 @@ namespace RealmTodo.Services
         private IQuery? _queryAllTasks;
 
         //used for calculating RequestChanges
-        private Dictionary<string, Item> _previousItemsMap = new Dictionary<string, Item>();
+        private Dictionary<string, Item> _previousItems = new Dictionary<string, Item>();
         
         public SubscriptionType CurrentSubscriptionType = SubscriptionType.Mine;
 
@@ -86,10 +88,87 @@ namespace RealmTodo.Services
             }
         }
 
-
-        public IResultsChange<Item> GetTaskList(SubscriptionType subscriptionType)
+        /// <summary>
+        /// Retrieves the task list from the Couchbase collection and invokes the provided callback function with the results.
+        /// </summary>
+        /// <param name="subscriptionType">The type of subscription to determine which tasks to query (Mine or All).</param>
+        /// <param name="callback">The callback function to be invoked with the results of the query.</param>
+        /// <remarks>
+        /// This method sets up a query listener based on the provided <paramref name="subscriptionType"/>.
+        /// It processes the query results to determine initial results, insertions, updates, and deletions,
+        /// and then invokes the callback function with the appropriate results.
+        /// </remarks>
+        public void GetTaskList(
+            SubscriptionType subscriptionType,
+            Action<IResultsChange<Item>> callback)
         {
             var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
+            _queryListenerToken = query?.AddChangeListener((sender, change) =>
+            {
+                var isInitial = _previousItems.Count == 0;
+                var initialResults = new InitialResults<Item>();
+                var updatedResults = new UpdatedResults<Item>();
+
+                // used to track the current items which will
+                // become the next previousItemMap after this is complete
+                var currentItemsMap = new Dictionary<string, Item>();
+                
+                // used to trim out items
+                // anything left over is a deletion
+                var previousItemsKeys = _previousItems.Keys.ToHashSet();
+                foreach (var row in change.Results)
+                {
+                    var json = row.GetDictionary("item")?.ToJSON();
+                    if (json == null) continue;
+                    var item = JsonSerializer.Deserialize<Item>(json);
+                    //validate serialization worked
+                    if (item == null) continue;
+                    //add item to currentMap used for filling the previousItems later
+                    currentItemsMap.Add(item.Id, item);
+                    // if it's initial, all items are insertions
+                    if (isInitial)
+                    {
+                        initialResults.List.Add(item);
+                    } else {
+                        //check to see if it's an update 
+                        if (_previousItems.TryGetValue(item.Id, out var previousItem))
+                        {
+                            if (item != previousItem)
+                            {
+                                updatedResults.Changes.Add(item);
+                            }
+                        } else {
+                            // if it's not an update, it's an insertion 
+                            updatedResults.Insertions.Add(item);
+                        }
+                        //remove the item from the previous items
+                        //required to determine deletions
+                        _previousItems.Remove(item.Id);
+                    }
+                }
+                
+                // Determine deletions
+                if (!isInitial)
+                {
+                    foreach (var previousItem in _previousItems.Values)
+                    {
+                        updatedResults.Deletions.Add(previousItem);
+                    }
+                }
+                
+                //fill the _previousItems with the current items
+                _previousItems.Clear();
+                foreach (var item in currentItemsMap)
+                {
+                    _previousItems.Add(item.Key, item.Value);
+                }
+                if (isInitial)
+                {
+                    callback(initialResults);
+                } else {
+                    callback(updatedResults);    
+                }
+            });
         }
         
         /// <summary>
