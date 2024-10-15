@@ -17,7 +17,7 @@ namespace RealmTodo.Services
         private readonly IAuthenticationService _authenticationService = authenticationService;
 
         //manage state of the service
-        private bool _serviceInitialised;
+        private bool _databaseInitialised;
 
         //scope and collection information
         private readonly string _scopeName = "data";
@@ -38,8 +38,8 @@ namespace RealmTodo.Services
 
         //used for calculating RequestChanges
         private Dictionary<string, Item> _previousItems = new Dictionary<string, Item>();
-        
-        public SubscriptionType CurrentSubscriptionType = SubscriptionType.Mine;
+
+        public SubscriptionType? CurrentSubscriptionType = null; 
 
         //current authenticated user
         public User? CurrentUser { get; private set; }
@@ -62,9 +62,19 @@ namespace RealmTodo.Services
         public void AddTask(Item item)
         {
             ValidateUserCollection();
-            var jsonString = item.ToJson();
-            var mutableDocument = new MutableDocument(item.Id, jsonString);
-            _taskCollection?.Save(mutableDocument);
+            var editDocument = _taskCollection?.GetDocument(item.Id);
+            if (editDocument != null)
+            {
+                var mutEditDocument = editDocument.ToMutable();
+                mutEditDocument.SetString("summary", item.Summary);
+                _taskCollection?.Save(mutEditDocument);
+            } else
+            {
+                //create new document
+                var jsonString = item.ToJson();
+                var mutableDocument = new MutableDocument(item.Id, jsonString);
+                _taskCollection?.Save(mutableDocument);    
+            }
         }
 
 
@@ -80,13 +90,16 @@ namespace RealmTodo.Services
         /// This method validates the current state, retrieves the document associated with the provided <see cref="Item"/> object,
         /// and deletes it from the Couchbase collection if it exists.
         /// </remarks>
-        public void DeleteTask(Item item)
+        public void DeleteTask(Item? item)
         {
-            ValidateState(item);
-            var document = _taskCollection?.GetDocument(item.Id);
-            if (document != null)
+            if (item != null)
             {
-                _taskCollection?.Delete(document);
+                ValidateState(item);
+                var document = _taskCollection?.GetDocument(item.Id);
+                if (document != null)
+                {
+                    _taskCollection?.Delete(document);
+                }
             }
         }
 
@@ -105,6 +118,8 @@ namespace RealmTodo.Services
         /// </remarks>
         public async Task Init()
         {
+            //check to see if the platform is Android - if so register
+            
             //turn on debugging - for production apps you should probably turn this off
             //https://docs.couchbase.com/couchbase-lite/current/csharp/troubleshooting-logs.html
             Database.Log.Console.Level = LogLevel.Debug;
@@ -130,7 +145,7 @@ namespace RealmTodo.Services
         /// </remarks>
         public void InitDatabase()
         {
-            if (_serviceInitialised)
+            if (_databaseInitialised)
             {
                 return;
             }
@@ -166,7 +181,7 @@ namespace RealmTodo.Services
             //create cache queries
             var query = "SELECT * FROM data.tasks  as item ";
             _queryAllTasks = _database.CreateQuery(query);
-            var queryMyTasks = $"{query} WHERE item.ownerId = {CurrentUser?.Username}";
+            var queryMyTasks = $"{query} WHERE item.ownerId = '{CurrentUser?.Username}'";
             _queryMyTasks = _database.CreateQuery(queryMyTasks);
 
             //create replicator config
@@ -196,7 +211,7 @@ namespace RealmTodo.Services
 
             _replicator.Start();
 
-            _serviceInitialised = true;
+            _databaseInitialised = true;
         }
 
         /// <summary>
@@ -240,6 +255,7 @@ namespace RealmTodo.Services
             var user = await _authenticationService.Login(email, password, AppConfig);
 
             CurrentUser = user ?? throw new UnauthorizedAccessException("Login failed. Invalid email or password.");
+            InitDatabase();
         }
 
         /// <summary>
@@ -251,13 +267,20 @@ namespace RealmTodo.Services
         /// </remarks>
         public void Logout()
         {
+            //clear the previous items
             CurrentUser = null;
-            _replicatorStatusToken?.Remove();
-            _replicatorStatusToken = null;
+            CurrentSubscriptionType = null; 
+            _previousItems.Clear();
+            
+            //clean up query stuff
             _queryListenerToken?.Remove();
             _queryListenerToken = null;
+            _queryAllTasks = null;
+            _queryMyTasks = null;
 
             //close the replicator
+            _replicatorStatusToken?.Remove();
+            _replicatorStatusToken = null;
             _replicator?.Stop();
             _replicator?.Dispose();
             _replicator = null;
@@ -270,6 +293,8 @@ namespace RealmTodo.Services
             _database?.Close();
             _database?.Dispose();
             _database = null;
+
+            _databaseInitialised = false;
         }
 
         /// <summary>
@@ -310,83 +335,96 @@ namespace RealmTodo.Services
             SubscriptionType subscriptionType,
             Action<IResultsChange<Item>> callback)
         {
-            var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
-            
-            //remove the previous listener to clean up memory
-            _queryListenerToken?.Remove();
-            _queryListenerToken = null;
-            
-            //set the listener for live query
-            _queryListenerToken = query?.AddChangeListener((sender, change) =>
+            if (CurrentSubscriptionType == null || CurrentSubscriptionType != subscriptionType)
             {
-                var isInitial = _previousItems.Count == 0;
-                var initialResults = new InitialResults<Item>();
-                var updatedResults = new UpdatedResults<Item>();
+                var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
 
-                // used to track the current items which will
-                // become the next previousItemMap after this is complete
-                var currentItemsMap = new Dictionary<string, Item>();
-                
-                // used to trim out items
-                // anything left over is a deletion
-                var previousItemsKeys = _previousItems.Keys.ToHashSet();
-                foreach (var row in change.Results)
+                //remove the previous listener to clean up memory
+                _queryListenerToken?.Remove();
+                _queryListenerToken = null;
+
+                //set the listener for live query
+                _queryListenerToken = query?.AddChangeListener((sender, change) =>
                 {
-                    var json = row.GetDictionary("item")?.ToJSON();
-                    if (json == null) continue;
-                    var item = JsonSerializer.Deserialize<Item>(json);
-                    //validate serialization worked
-                    if (item == null) continue;
-                    
-                    //used to add the field that isn't serialized, but used in bindings of the UI
-                    item.IsMine = item.OwnerId == CurrentUser?.Username;
-                    
-                    //add item to currentMap used for filling the previousItems later
-                    currentItemsMap.Add(item.Id, item);
-                    // if it's initial, all items are insertions
+                    var isInitial = _previousItems.Count == 0;
+                    var initialResults = new InitialResults<Item>();
+                    var updatedResults = new UpdatedResults<Item>();
+
+                    // used to track the current items which will
+                    // become the next previousItemMap after this is complete
+                    var currentItemsMap = new Dictionary<string, Item>();
+
+                    // used to trim out items
+                    // anything left over is a deletion
+                    var previousItemsKeys = _previousItems.Keys.ToHashSet();
+                    foreach (var row in change.Results)
+                    {
+                        var json = row.GetDictionary("item")?.ToJSON();
+                        if (json == null) continue;
+                        var item = JsonSerializer.Deserialize<Item>(json);
+                        //validate serialization worked
+                        if (item == null) continue;
+
+                        //used to add the field that isn't serialized, but used in bindings of the UI
+                        item.IsMine = item.OwnerId == CurrentUser?.Username;
+
+                        //add item to currentMap used for filling the previousItems later
+                        currentItemsMap.Add(item.Id, item);
+                        // if it's initial, all items are insertions
+                        if (isInitial)
+                        {
+                            initialResults.List.Add(item);
+                        }
+                        else
+                        {
+                            //check to see if it's an update 
+                            if (_previousItems.TryGetValue(item.Id, out var previousItem))
+                            {
+                                if (item != previousItem)
+                                {
+                                    updatedResults.Changes.Add(item);
+                                }
+                            }
+                            else
+                            {
+                                // if it's not an update, it's an insertion 
+                                updatedResults.Insertions.Add(item);
+                            }
+
+                            //remove the item from the previous items
+                            //required to determine deletions
+                            _previousItems.Remove(item.Id);
+                        }
+                    }
+
+                    // Determine deletions
+                    if (!isInitial)
+                    {
+                        foreach (var previousItem in _previousItems.Values)
+                        {
+                            updatedResults.Deletions.Add(previousItem);
+                        }
+                    }
+
+                    //fill the _previousItems with the current items
+                    _previousItems.Clear();
+                    foreach (var item in currentItemsMap)
+                    {
+                        _previousItems.Add(item.Key, item.Value);
+                    }
+
                     if (isInitial)
                     {
-                        initialResults.List.Add(item);
-                    } else {
-                        //check to see if it's an update 
-                        if (_previousItems.TryGetValue(item.Id, out var previousItem))
-                        {
-                            if (item != previousItem)
-                            {
-                                updatedResults.Changes.Add(item);
-                            }
-                        } else {
-                            // if it's not an update, it's an insertion 
-                            updatedResults.Insertions.Add(item);
-                        }
-                        //remove the item from the previous items
-                        //required to determine deletions
-                        _previousItems.Remove(item.Id);
+                        callback(initialResults);
                     }
-                }
-                
-                // Determine deletions
-                if (!isInitial)
-                {
-                    foreach (var previousItem in _previousItems.Values)
+                    else
                     {
-                        updatedResults.Deletions.Add(previousItem);
+                        callback(updatedResults);
                     }
-                }
-                
-                //fill the _previousItems with the current items
-                _previousItems.Clear();
-                foreach (var item in currentItemsMap)
-                {
-                    _previousItems.Add(item.Key, item.Value);
-                }
-                if (isInitial)
-                {
-                    callback(initialResults);
-                } else {
-                    callback(updatedResults);    
-                }
-            });
+                });
+                //change the current cached subscription type
+                CurrentSubscriptionType = subscriptionType;
+            }
         }
         
         /// <summary>
@@ -400,19 +438,23 @@ namespace RealmTodo.Services
         /// This method retrieves the document associated with the provided <see cref="Item"/> object,
         /// toggles its "isComplete" status, and saves the updated document back to the Couchbase collection.
         /// </remarks>
-        public void ToggleIsComplete(Item item)
+        public void ToggleIsComplete(Item? item)
         {
-            const string isCompleteKey = "isComplete";
-            ValidateState(item);    
-            var document = _taskCollection?.GetDocument(item.Id);
-            if (document == null)
+            if (item != null)
             {
-                throw new InvalidOperationException("Document not found");
+                const string isCompleteKey = "isComplete";
+                ValidateState(item);
+                var document = _taskCollection?.GetDocument(item.Id);
+                if (document == null)
+                {
+                    throw new InvalidOperationException("Document not found");
+                }
+
+                var mutableDocument = document.ToMutable();
+                var isComplete = document.GetBoolean(isCompleteKey);
+                mutableDocument.SetBoolean(isCompleteKey, !isComplete);
+                _taskCollection?.Save(mutableDocument);
             }
-            var mutableDocument = document.ToMutable();
-            var isComplete = document.GetBoolean(isCompleteKey);
-            mutableDocument.SetBoolean(isCompleteKey, !isComplete);
-            _taskCollection?.Save(mutableDocument);
         }
 
         /// <summary>

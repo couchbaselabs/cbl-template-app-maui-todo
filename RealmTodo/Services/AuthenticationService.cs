@@ -16,11 +16,12 @@ public class AuthenticationService : IAuthenticationService
         {
             throw new InvalidOperationException("Unable to connect to the server. Please check your network connection.");
         }
+
         var httpClient = GetHttpClient();
-        httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{username}:{password}"))}"); 
+        var encoding = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{username}:{password}")); 
+        httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {encoding}"); 
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-        httpClient.DefaultRequestHeaders.Add("Content-Type", "application/json");
-        var response = await httpClient.GetAsync(httpsUrl);
+        var response = await httpClient.GetAsync($"{httpsUrl}/");
         return response.IsSuccessStatusCode ? new User(username, password) : null;
     }
     

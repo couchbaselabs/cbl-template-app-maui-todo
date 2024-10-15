@@ -6,8 +6,8 @@
     xmlns:local="clr-namespace:RealmTodo.Views"
     Shell.FlyoutBehavior="Disabled">
     <ShellContent
-        Title="Login"
-        ContentTemplate="{DataTemplate local:LoginPage}"
-        Route="login" />
+        Title="To Do Items"
+        ContentTemplate="{DataTemplate local:ItemsPage}"
+        Route="items" />
 </Shell>
 

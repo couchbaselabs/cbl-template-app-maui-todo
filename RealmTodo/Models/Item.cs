@@ -1,18 +1,41 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Serialization; 
+using System.Text.Json.Serialization;
+using CommunityToolkit.Mvvm.ComponentModel;
 using RealmTodo.Services;
 
 namespace RealmTodo.Models
 {
-    public record Item
+    public partial class Item : ObservableObject
     {
-        public string Id { get; init; } = Guid.NewGuid().ToString();
-        public string OwnerId { get; init; } = string.Empty;
-        public string Summary { get; init; } = string.Empty;
-        public bool IsComplete { get; init; }
+        [JsonPropertyName("id")] public string Id { get; init; } = Guid.NewGuid().ToString();
+        
+        [JsonPropertyName("ownerId")] public string OwnerId { get; init; } = string.Empty;
 
-        [JsonIgnore] 
-        public bool IsMine { get; set; } = false; 
+        [JsonIgnore] private string _summary; 
+        [JsonPropertyName("summary")] public string Summary
+        {
+            get => _summary;
+            set
+            {
+                SetProperty(ref _summary, value);
+                OnPropertyChanged("Summary");
+            }
+        }
+
+        [JsonIgnore] private bool _isComplete;
+
+        [JsonPropertyName("isComplete")]
+        public bool IsComplete
+        {
+            get => _isComplete; 
+            set 
+            {
+                SetProperty(ref _isComplete, value);
+                OnPropertyChanged("IsComplete"); 
+            }
+        }
+        
+        [JsonIgnore] public bool IsMine { get; set; } = false;
 
         public string ToJson()
         {

@@ -4,12 +4,13 @@
              x:Class="RealmTodo.Views.ItemsPage"
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              xmlns:vm="clr-namespace:RealmTodo.ViewModels"
-             BackgroundColor="#E3FCF7"
+             BackgroundColor="White"
              x:Name="itemsPage">
     <ContentPage.Behaviors>
         <toolkit:EventToCommandBehavior
             EventName="Appearing"
-            Command="{Binding AppearingCommand}" />
+            Command="{Binding AppearingCommand}"/>
+        <toolkit:StatusBarBehavior StatusBarColor="#EA2328" StatusBarStyle="LightContent" />
     </ContentPage.Behaviors>
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Change Connection Status" Order="Primary" IconImageSource="{Binding ConnectionStatusIcon}" Command="{Binding ChangeConnectionStatusCommand}" />
@@ -21,10 +22,9 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="70" />
             <RowDefinition Height="60" />
-            <RowDefinition Height="60" />
         </Grid.RowDefinitions>
         <StackLayout Orientation="Horizontal"
-                     BackgroundColor="#E3FCF7"
+                     BackgroundColor="#F1F1F1"
                      Padding="20"
                      Spacing="15">
             <Label HorizontalTextAlignment="End"
@@ -33,27 +33,42 @@
                 HorizontalOptions="FillAndExpand" VerticalOptions="Center"/>
             <Switch HorizontalOptions="End" VerticalOptions="Center" IsToggled="{Binding IsShowAllTasks}" />
         </StackLayout>
-        <ListView ItemsSource="{Binding Items}"
-                  SelectionMode="None"
-             Grid.Row="1"
-             BackgroundColor="White">
-            <ListView.ItemTemplate>
+        <CollectionView  
+              ItemsSource="{Binding Items}"
+              SelectionMode="None"
+              Grid.Row="1"
+              BackgroundColor="White">
+            <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <ViewCell>
                         <StackLayout Orientation="Horizontal" Padding="5">
-                            <CheckBox IsChecked="{Binding IsComplete}" VerticalOptions="Center" IsEnabled="{Binding IsMine}"  />
-                            <StackLayout Orientation="Horizontal" HorizontalOptions="FillAndExpand" VerticalOptions="Center">
+                            <CheckBox 
+                                IsChecked="{Binding IsComplete}" VerticalOptions="Center" 
+                                IsEnabled="{Binding IsMine}"  >
+                                <CheckBox.GestureRecognizers>
+                                    <TapGestureRecognizer
+                                        Command="{Binding Path=BindingContext.ToggleItemCompleteCommand, Source={x:Reference itemsPage}}"
+                                        CommandParameter="{Binding .}"/>
+                                </CheckBox.GestureRecognizers>
+                            </CheckBox>
+                            <StackLayout 
+                                Orientation="Horizontal" 
+                                HorizontalOptions="FillAndExpand" 
+                                VerticalOptions="Center">
                                 <StackLayout.GestureRecognizers>
-                                    <TapGestureRecognizer Command="{Binding Path=BindingContext.EditItemCommand, Source={x:Reference itemsPage}}"
-                                    CommandParameter="{Binding .}"/>
+                                    <TapGestureRecognizer 
+                                        Command="{Binding Path=BindingContext.EditItemCommand, Source={x:Reference itemsPage}}"
+                                        CommandParameter="{Binding .}"/>
                                 </StackLayout.GestureRecognizers>
                                 <Label Text="{Binding Summary}"
                                     HorizontalOptions="FillAndExpand"
-                                    VerticalOptions="Center"/>
+                                    VerticalOptions="Center"/> 
                                 <Label Text="(mine)"
-                                   FontSize="Small"
-                                   Margin="15"
-                                   VerticalOptions="Center" HorizontalOptions="End" IsVisible="{Binding IsMine}"/>
+                                       Margin="15"
+                                       HeightRequest="30"
+                                       Height="30" 
+                                        IsVisible="{Binding IsMine}"
+                                       VerticalOptions="Center" 
+                                       HorizontalOptions="End"/>
                             </StackLayout>
                             <Button ImageSource="close.png"
                                     BackgroundColor="Transparent"
@@ -63,22 +78,22 @@
                                     IsEnabled="{Binding IsMine}"
                                     />
                         </StackLayout>
-                    </ViewCell>
                 </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
         <Border BackgroundColor="White"
                 StrokeThickness="0"
                Padding="8" Grid.Row="2">
             <Button
-                Margin="5"
+                Margin="4"
                 Text="Add new To-do"
                 FontSize="Medium"
                 Command="{Binding AddItemCommand}"
             />
         </Border>
-        <Frame  Grid.Row="4" Padding="10" BorderColor="Black" BackgroundColor="#E3FCF7"  Margin="5">
-            <Label            Text="HINT: Log in with the same account on another device or simulator to see your list sync in real-time"
+        <Frame Grid.Row="4" Padding="10" BorderColor="Black" BackgroundColor="#F1F1F1"  Margin="5">
+            <Label           
+                Text="HINT: Log in with the same account on another device or simulator to see your list sync in real-time"
                 FontSize="Micro"
                 HorizontalTextAlignment="Center"/>
         </Frame>

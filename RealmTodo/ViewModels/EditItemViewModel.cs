@@ -41,7 +41,8 @@ namespace RealmTodo.ViewModels
         {
             if (InitialItem != null) // editing an item
             {
-                databaseService.ToggleIsComplete(InitialItem);
+                InitialItem.Summary = Summary;
+                databaseService.AddTask(InitialItem);
             }
             else // creating a new item
             {

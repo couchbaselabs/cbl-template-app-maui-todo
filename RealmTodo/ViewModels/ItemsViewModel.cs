@@ -1,12 +1,15 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Collections.ObjectModel;
+using System.Security.AccessControl;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RealmTodo.Data;
 using RealmTodo.Models;
 using RealmTodo.Services;
+using RealmTodo.Views;
 
 namespace RealmTodo.ViewModels
 {
-    public partial class ItemsViewModel(IDatabaseService couchbaseService)
+    public partial class ItemsViewModel(IDatabaseService couchbaseService, LoginPage loginPage)
         : BaseViewModel
     {
         [ObservableProperty] 
@@ -16,7 +19,7 @@ namespace RealmTodo.ViewModels
         private bool isShowAllTasks;
 
         [ObservableProperty] 
-        private IList<Item> items = new List<Item>();
+        private ObservableCollection<Item> items = [];
 
         private bool isOnline = true;
 
@@ -25,7 +28,6 @@ namespace RealmTodo.ViewModels
         {
             if (couchbaseService.CurrentUser != null)
             {
-                //setup live query
                 couchbaseService.SetTaskLiveQuery(SubscriptionType.Mine, UpdateItems);
             }
             else
@@ -35,19 +37,35 @@ namespace RealmTodo.ViewModels
         }
 
         [RelayCommand]
-        public async Task Logout()
+        public void Logout()
         {
             IsBusy = true;
+            Items.Clear();
+            Items = new ObservableCollection<Item>();
             couchbaseService.Logout();
             IsBusy = false;
 
-            await Shell.Current.GoToAsync($"//login");
+            App.Current.MainPage = loginPage;
         }
 
         [RelayCommand]
         public async Task AddItem()
         {
             await Shell.Current.GoToAsync($"itemEdit");
+        }
+
+        [RelayCommand]
+        public async Task ToggleItemComplete(Item? item)
+        {
+            if (item != null)
+            {
+                if (!await CheckItemOwnership(item))
+                {
+                    return;
+                }
+
+                couchbaseService.ToggleIsComplete(item);
+            }
         }
 
         [RelayCommand]
@@ -92,43 +110,52 @@ namespace RealmTodo.ViewModels
 
         private void UpdateItems(IResultsChange<Item> resultItems)
         {
-            switch (resultItems)
+            MainThread.InvokeOnMainThreadAsync(() =>
             {
-                case InitialResults<Item> initialItems:
-                    Items.Clear();
-                    Items = initialItems.List;
-                    break;
-                case UpdatedResults<Item> updatedItems:
+                switch (resultItems)
                 {
-                    foreach (var item in updatedItems.Insertions)
+                    case InitialResults<Item> initialItems:
+                        Items.Clear();
+                        foreach (var item in initialItems.List)
+                        {
+                            Items.Add(item);
+                        }
+                        break;
+                    case UpdatedResults<Item> updatedItems:
                     {
-                        Items.Add(item);
-                    }
+                        foreach (var item in updatedItems.Insertions)
+                        {
+                            Items.Add(item);
+                        }
 
-                    foreach (var item in updatedItems.Deletions)
-                    {
-                        Items.Remove(item);
-                    }
+                        foreach (var item in updatedItems.Deletions)
+                        {
+                            Items.Remove(item);
+                        }
 
-                    foreach (var item in updatedItems.Changes)
-                    {
-                    
-                        var existingItem = Items.FirstOrDefault(i => i.Id == item.Id);
-                        if (existingItem == null) continue;
-                        Items.Remove(existingItem);
-                        Items.Add(item);
+                        foreach (var item in updatedItems.Changes)
+                        {
+                            var existingItem = Items.FirstOrDefault(i => i.Id == item.Id);
+                            if (existingItem == null) continue;
+                            var index = Items.IndexOf(existingItem);
+                            Items[index] = item;
+                        }
+                        OnPropertyChanged(nameof(Items));
+                        break;
                     }
-
-                    break;
                 }
-            }
+            });
         }
 
-        private async Task<bool> CheckItemOwnership(Item item)
+        private async Task<bool> CheckItemOwnership(Item? item)
         {
-            if (item.IsMine) return true;
-            await DialogService.ShowAlertAsync("Error", "You cannot modify items not belonging to you", "OK");
-            return false;
+            if (item != null)
+            {
+                if (item.IsMine) return true;
+                await DialogService.ShowAlertAsync("Error", "You cannot modify items not belonging to you", "OK");
+                return false;
+            }
+            return true;
         }
 
         async partial void OnIsShowAllTasksChanged(bool value)

@@ -1,57 +1,45 @@
-﻿# Maui C# Template App
+﻿# Conversion Example of MongoDb Atlas Device Sync to Couchbase Lite for DotNet Maui Developers 
 
-A todo list application built with the [.NET SDK](https://www.mongodb.com/docs/realm/sdk/dotnet/) and [Atlas Device Sync](https://www.mongodb.com/docs/atlas/app-services/sync/).
+The original version of this [application](https://github.com/mongodb/template-app-maui-todo)  was built with the [MongoDb Atlas Device SDK](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet/) and [Atlas Device Sync](https://www.mongodb.com/docs/atlas/app-services/sync/). 
 
-You can follow along with the [MAUI Tutorial](https://www.mongodb.com/docs/atlas/app-services/tutorial/dotnet/) to see how to build, modify, and
-run this template app.
-
-> [!WARNING]
-> As of September 2024, Atlas Device SDKs are deprecated. Atlas Device SDKs
-> will reach end-of-life and will no longer be maintained by MongoDB on
-> September 30, 2025.
+> **NOTE**
+>The original application is a basic To Do list.  The original source code has it's own opinionated way of implementing an DotNet Maui application and communicating between different layers.  This conversion is by no means a best practice for Maui development or a show case on how to properly communicate between layers of an application.  It's more of an example of the process that a developer will have to go through to convert an application from one SDK to another.
 >
-> The template app in this repository should only be used as a reference for
-> the on-device database and not to create a new app based on Device Sync.
-> Refer to the [deprecation page](https://www.mongodb.com/docs/atlas/device-sdks/>deprecation/) for details.
 
-## Configuration
+Some minior UI changes were made to remove wording about Realm and replaced with Couchbase.
 
-The App ID is located in `atlasConfig.json`:
+# Capella Configuration
 
-```json
-{
-  "appId": "********",
-  "baseUrl": "https://services.cloud.mongodb.com"
-}
+Before running this application, you must have [Couchbase Capella App Services](https://docs.couchbase.com/cloud/get-started/configuring-app-services.html) set up.  Instructions for setting up Couchbase Capella App Services and updating the configuration file can be found in the [Capella.md](./Capella.md) file in this repository.  Please ensure you complete these steps first.
+
+# App Overview
+The following diagram shows the flow of the application
+
+![App Flow](dotnet-todo-app-flow.png)
+
+# Maui App Conversion
+
+The following is information on the application conversion process and what files were changed.
+
+## Nuget Changes
+
+The original version of the application was based on .NET version 7.0 and the Maui Workload for .NET 7.0.  The app was upgraded to .NET 8 and the Maui workload for .NET 8 because this release is under long-term support from Microsoft (LTS).  
+
+The [Couchbase Lite Nuget package](https://docs.couchbase.com/couchbase-lite/current/csharp/gs-install.html) was added to the [RealmToDo.csproj](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/RealmTodo.csproj#L48) file.  
+
+```xml 
+<ItemGroup>
+  <PackageReference Include="Couchbase.Lite" Version="3.2.0" />
+  <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
+  <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+  <PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
+ </ItemGroup>
 ```
+## App Services Configuration File
 
-You will need to change the value of `appId` value with your App Services App ID. For help finding this ID, refer to: [Find Your Project or App Id](https://www.mongodb.com/docs/atlas/app-services/reference/find-your-project-or-app-id/)
+The original source code had the configuration for Atlas App Services stored in the atlasConfig.json file located projects root folder.  This file was removed and the configuration for Capella App Services was added in the [capellaConfig.json](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/capellaConfig.json#L2).
 
-### Using the Atlas App Services UI
+You will need to modify this file to add your Couchbase Capella App Services endpoint URL, as outlined in the [Capella setup instructions](./Capella.md).
 
-The easiest way to use this template app is to log on to [Atlas App Services](https://services.cloud.mongodb.com) and click the **Create App From Template** button. Choose
-**Real Time Sync**, and then follow the prompts. While the backend app is being
-created, you can download this MAUI template app pre-configured for your new
-app.
+## App Builder changes
 
-### Cloning from GitHub
-
-If you have cloned this repository from the GitHub
-[mongodb/template-app-xamarin-todo](https://github.com/mongodb/template-app-xamarin-todo.git)
-repository, you must create a separate App Services App with Device Sync
-enabled to use this client. You can find information about how to do this
-in the Atlas App Services documentation page:
-[Template Apps -> Create a Template App](https://www.mongodb.com/docs/atlas/app-services/reference/template-apps/)
-
-Once you have created the App Services App, update the `appId` per the
-above instructions.
-
-### Download the Client as a Zip File
-
-If you have downloaded this client as a .zip file from the Atlas App Services
-UI, the App ID should have been automatically set in the `atlasConfig.json` file,
-so there is no need to set it manually.
-
-## Issues
-
-Please report issues with the template at https://github.com/mongodb-university/realm-template-apps/issues/new .

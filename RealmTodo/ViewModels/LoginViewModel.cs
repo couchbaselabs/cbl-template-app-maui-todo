@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using RealmTodo.Services;
+using RealmTodo.Views;
 
 namespace RealmTodo.ViewModels
 {
@@ -31,7 +32,7 @@ namespace RealmTodo.ViewModels
 
             if (databaseService.CurrentUser != null)
             {
-                await GoToMainPage();
+                GoToMainPage();
             }
         }
         
@@ -62,12 +63,12 @@ namespace RealmTodo.ViewModels
             }
             catch (Exception ex)
             {
-                IsBusy = false;
                 await DialogService.ShowAlertAsync("Login failed", ex.Message, "Ok");
+                IsBusy = false;
                 return;
             }
 
-            await GoToMainPage();
+            GoToMainPage();
         }
 
         private async Task<bool> VerifyEmailAndPassword()
@@ -78,9 +79,9 @@ namespace RealmTodo.ViewModels
 
         }
 
-        private async Task GoToMainPage()
+        private void GoToMainPage()
         {
-            await Shell.Current.GoToAsync($"//items");
+            App.Current.MainPage = new AppShell();
         }
 
     }
