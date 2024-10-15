@@ -160,7 +160,7 @@ namespace RealmTodo.Services
                     "Can't read application configuration file, can't get Capella App Services URL without reading in config.");
             }
             //calculate the database name for the current logged-in user
-            var username = CurrentUser?.Username.Replace("@", "-").Replace(".", "-");
+            var username = CurrentUser!.Username.Replace("@", "-").Replace(".", "-");
             var databaseName = $"tasks-{username}";
 
             //set up the database
@@ -178,7 +178,7 @@ namespace RealmTodo.Services
             //create cache queries
             var query = "SELECT * FROM data.tasks  as item ";
             _queryAllTasks = _database.CreateQuery(query);
-            var queryMyTasks = $"{query} WHERE item.ownerId = '{CurrentUser?.Username}'";
+            var queryMyTasks = $"{query} WHERE item.ownerId = '{CurrentUser!.Username}'";
             _queryMyTasks = _database.CreateQuery(queryMyTasks);
 
             //create replicator config
@@ -363,7 +363,7 @@ namespace RealmTodo.Services
                         if (item == null) continue;
 
                         //used to add the field that isn't serialized, but used in bindings of the UI
-                        item.IsMine = item.OwnerId == CurrentUser?.Username;
+                        item.IsMine = item.OwnerId == CurrentUser!.Username;
 
                         //add item to currentMap used for filling the previousItems later
                         currentItemsMap.Add(item.Id, item);
@@ -492,7 +492,7 @@ namespace RealmTodo.Services
         private void ValidateState(Item item)
         {
             ValidateUserCollection();
-            if (item.OwnerId != CurrentUser?.Username)
+            if (item.OwnerId != CurrentUser!.Username)
             {
                 throw new InvalidOperationException("Error - user can't delete tasks they don't own");
             }
