@@ -48,9 +48,17 @@ FodyWeawvers is used for the Realm Atlas Device SDK for LINQ support.  This was 
 The Couchbase Lite SDK requires [registration of the SDK for Android](https://docs.couchbase.com/couchbase-lite/current/csharp/gs-install.html#activating-on-android-platform-only).  The [MainApplication](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Platforms/Android/MainApplication.cs) class was modified to register the Couchbase Lite SDK.
 
 ```csharp
-
+[Application]
+public class MainApplication : MauiApplication
+{
+ public MainApplication(IntPtr handle, JniHandleOwnership ownership)
+ : base(handle, ownership)
+ {
+    Couchbase.Lite.Support.Droid.Activate(this);
+ }
+ protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
+}
 ```
-
 
 ## Changes to Services 
 
@@ -85,7 +93,6 @@ The authentication of the app is called from the [IAuthenticationService](https:
 
  Authentication is done via the Couchbase Capella App Services Endpoint public [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html) in the CouchbaseService [LoginAsync method](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs#L249) to resolve the SDK differences between Realm SDK and Couchbase Lite SDK without having to refactor large chunks of code. 
 
-
 > **NOTE**
 >Registering new users is out of scope of the conversion, so this functionaliy was removed.  Capella App Services allows the creating of Users per endpoint via the [UI](https://docs.couchbase.com/cloud/app-services/user-management/create-user.html#usermanagement/create-app-role.adoc) or the [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html).  For large scale applications it's highly recommended to use a 3rd party [OpendID Connect](https://docs.couchbase.com/cloud/app-services/user-management/set-up-authentication-provider.html) provider. 
 >
@@ -102,12 +109,12 @@ The .NET serialization library makes it easy to convert the item class to a JSON
 
 Some fields need to be "Observable" in order for the UI in the application to dynamically update if changes are detected.  Those fields the SetProperty and OnPropertyChanged methods were implemented from the [MVVM toolkit](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/). 
 
-
 ### IDatabaseService Interface
 
 The original source code had a [RealmService](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs#L8) class that was used to interact with the Realm Atlas Device SDK and was a static class.  This was replaced with an [IDatabaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/IDatabaseService.cs#L6) interface and a [CouchbaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs) class that implements the interface.  The `CouchbaseService` class is used to interact with the Couchbase Lite SDK. 
 
 ### Implementation of CouchbaseService 
+
 A heavy amount of code was refactored to implement the [CouchbaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs) from the original [RealmService](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs).  The highlights of those changes are as follows. 
 
 ### Init Method 
@@ -129,3 +136,6 @@ AppConfig = JsonSerializer.Deserialize<CouchbaseAppConfig>(
 ```
 > **NOTE**
 > For more information on logging in Couchbase Lite, please review the [Documentation](https://docs.couchbase.com/couchbase-lite/current/csharp/troubleshooting-logs.html).
+
+### InitDatabase Method 
+A new [InitDatabase](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs#L146) method was created to initialize the database once the user is authenticated into the app.

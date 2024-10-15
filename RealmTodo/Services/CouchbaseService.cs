@@ -62,18 +62,18 @@ namespace RealmTodo.Services
         public void AddTask(Item item)
         {
             ValidateUserCollection();
-            var editDocument = _taskCollection?.GetDocument(item.Id);
+            var editDocument = _taskCollection!.GetDocument(item.Id);
             if (editDocument != null)
             {
                 var mutEditDocument = editDocument.ToMutable();
                 mutEditDocument.SetString("summary", item.Summary);
-                _taskCollection?.Save(mutEditDocument);
+                _taskCollection!.Save(mutEditDocument);
             } else
             {
                 //create new document
                 var jsonString = item.ToJson();
                 var mutableDocument = new MutableDocument(item.Id, jsonString);
-                _taskCollection?.Save(mutableDocument);    
+                _taskCollection!.Save(mutableDocument);    
             }
         }
 
@@ -95,10 +95,10 @@ namespace RealmTodo.Services
             if (item != null)
             {
                 ValidateState(item);
-                var document = _taskCollection?.GetDocument(item.Id);
+                var document = _taskCollection!.GetDocument(item.Id);
                 if (document != null)
                 {
-                    _taskCollection?.Delete(document);
+                    _taskCollection!.Delete(document);
                 }
             }
         }
@@ -118,12 +118,9 @@ namespace RealmTodo.Services
         /// </remarks>
         public async Task Init()
         {
-            //check to see if the platform is Android - if so register
-            
             //turn on debugging - for production apps you should probably turn this off
             //https://docs.couchbase.com/couchbase-lite/current/csharp/troubleshooting-logs.html
             Database.Log.Console.Level = LogLevel.Debug;
-            Database.Log.Console.Domains = LogDomain.All;
 
             //get the config from disk
             await using var fileStream = await FileSystem.Current.OpenAppPackageFileAsync("capellaConfig.json");
@@ -227,7 +224,7 @@ namespace RealmTodo.Services
         /// </remarks>
         public bool IsMyTask(Item item)
         {
-            return item.OwnerId == CurrentUser?.Username;
+            return item.OwnerId == CurrentUser!.Username;
         }
         
         /// <summary>
@@ -281,17 +278,17 @@ namespace RealmTodo.Services
             //close the replicator
             _replicatorStatusToken?.Remove();
             _replicatorStatusToken = null;
-            _replicator?.Stop();
-            _replicator?.Dispose();
+            _replicator!.Stop();
+            _replicator!.Dispose();
             _replicator = null;
 
             //close the collection
-            _taskCollection?.Dispose();
+            _taskCollection!.Dispose();
             _taskCollection = null;
 
             //close the database
-            _database?.Close();
-            _database?.Dispose();
+            _database!.Close();
+            _database!.Dispose();
             _database = null;
 
             _databaseInitialised = false;
@@ -306,7 +303,7 @@ namespace RealmTodo.Services
         /// </remarks>
         public void PauseSync()
         {
-            _replicator?.Stop();     
+            _replicator!.Stop();     
         }
         
         /// <summary>
@@ -318,7 +315,7 @@ namespace RealmTodo.Services
         /// </remarks>
         public void ResumeSync()
         {
-            _replicator?.Start();    
+            _replicator!.Start();    
         }
         
                 /// <summary>
@@ -344,7 +341,7 @@ namespace RealmTodo.Services
                 _queryListenerToken = null;
 
                 //set the listener for live query
-                _queryListenerToken = query?.AddChangeListener((sender, change) =>
+                _queryListenerToken = query!.AddChangeListener((sender, change) =>
                 {
                     var isInitial = _previousItems.Count == 0;
                     var initialResults = new InitialResults<Item>();
@@ -444,7 +441,7 @@ namespace RealmTodo.Services
             {
                 const string isCompleteKey = "isComplete";
                 ValidateState(item);
-                var document = _taskCollection?.GetDocument(item.Id);
+                var document = _taskCollection!.GetDocument(item.Id);
                 if (document == null)
                 {
                     throw new InvalidOperationException("Document not found");
@@ -453,7 +450,7 @@ namespace RealmTodo.Services
                 var mutableDocument = document.ToMutable();
                 var isComplete = document.GetBoolean(isCompleteKey);
                 mutableDocument.SetBoolean(isCompleteKey, !isComplete);
-                _taskCollection?.Save(mutableDocument);
+                _taskCollection!.Save(mutableDocument);
             }
         }
 
