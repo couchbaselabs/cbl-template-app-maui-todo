@@ -23,9 +23,9 @@ The following is information on the application conversion process and what file
 
 ## Nuget Changes
 
-The original version of the application was based on .NET version 7.0 and the Maui Workload for .NET 7.0.  The app was upgraded to .NET 8 and the Maui workload for .NET 8 because this release is under long-term support from Microsoft (LTS).  
+The application was initially built using .NET 7.0 and the .NET MAUI workload for that version. It has since been upgraded to .NET 8 and the corresponding .NET MAUI workload to take advantage of Microsoft’s long-term support (LTS) for this release.
 
-The [Couchbase Lite Nuget package](https://docs.couchbase.com/couchbase-lite/current/csharp/gs-install.html) was added to the [RealmToDo.csproj](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/RealmTodo.csproj#L48) file.  
+The Realm SDK Nuget packages were removed from the project.  The [Couchbase Lite Nuget package](https://docs.couchbase.com/couchbase-lite/current/csharp/gs-install.html) was added to the [RealmToDo.csproj](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/RealmTodo.csproj#L48) file.  
 
 ```xml 
 <ItemGroup>
@@ -41,5 +41,91 @@ The original source code had the configuration for Atlas App Services stored in 
 
 You will need to modify this file to add your Couchbase Capella App Services endpoint URL, as outlined in the [Capella setup instructions](./Capella.md).
 
-## App Builder changes
+## FodyWeavers Removal
+FodyWeawvers is used for the Realm Atlas Device SDK for LINQ support.  This was removed from the project as it is not needed for Couchbase Lite.
 
+## Android Registration for Couchbase Lite
+The Couchbase Lite SDK requires [registration of the SDK for Android](https://docs.couchbase.com/couchbase-lite/current/csharp/gs-install.html#activating-on-android-platform-only).  The [MainApplication](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Platforms/Android/MainApplication.cs) class was modified to register the Couchbase Lite SDK.
+
+```csharp
+
+```
+
+
+## Changes to Services 
+
+### Registering of Interfaces, Services, ViewModels, and Views
+
+The original source code relied on static classes for accessing services, which made testing challenging. To improve testability, the standard Dependency Injection (DI) pattern available in .NET MAUI was adopted.  The [MauiProgram.cs](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/MauiProgram.cs#L27) file was updated to register all services, view models, and views with the DI container using the builder.
+
+```csharp
+builder.Services.AddSingleton<IDatabaseService, CouchbaseService>();
+builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+       
+//add view models
+builder.Services.AddTransient <EditItemViewModel>();
+builder.Services.AddTransient <ItemsViewModel>();
+builder.Services.AddTransient <LoginViewModel>();
+        
+//add the views
+builder.Services.AddTransient <EditItemPage>();
+builder.Services.AddTransient <ItemsPage>();
+builder.Services.AddTransient <LoginPage>();
+```
+
+### Authentication
+
+The original source code uses the [Realms.Sync.App](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs#L12C24-L12C39) to [handle authentication](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs#L75).  
+
+The [Couchbase Lite SDK](https://docs.couchbase.com/couchbase-lite/current/android/replication.html#lbl-user-auth)  manages authentication differently than the [Mongo Realm SDK](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet/manage-users/authenticate/).  Code was added to deal with these differences. 
+
+### Handling Authencation of the App
+
+The authentication of the app is called from the [IAuthenticationService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/IAuthenticationService.cs#L5) interface.  The implementation [AuthenticationService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/AuthenticationService.cs#L6) was added to handle the authentication of the app. 
+
+ Authentication is done via the Couchbase Capella App Services Endpoint public [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html) in the CouchbaseService [LoginAsync method](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs#L249) to resolve the SDK differences between Realm SDK and Couchbase Lite SDK without having to refactor large chunks of code. 
+
+
+> **NOTE**
+>Registering new users is out of scope of the conversion, so this functionaliy was removed.  Capella App Services allows the creating of Users per endpoint via the [UI](https://docs.couchbase.com/cloud/app-services/user-management/create-user.html#usermanagement/create-app-role.adoc) or the [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html).  For large scale applications it's highly recommended to use a 3rd party [OpendID Connect](https://docs.couchbase.com/cloud/app-services/user-management/set-up-authentication-provider.html) provider. 
+>
+
+### Create User Model
+
+The Couchbase Lite SDK doesn't provide a user object for tracking the authenticated user, so a [new model](https://github.com/couchbaselabs/cbl-realm-template-app-kotlin-todo/blob/main/app/src/main/java/com/mongodb/app/domain/User.kt) was created. 
+
+### Updating Item Domain Model
+
+The [Item](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Models/Item.cs#L8) class was modified to remove the Realm annotations and to refactor some properties to meet standard .NET naming conventions.
+
+The .NET serialization library makes it easy to convert the item class to a JSON string for storage in Couchbase Lite, so changes were made to the class to make it serializable by the .NET serialization library.
+
+Some fields need to be "Observable" in order for the UI in the application to dynamically update if changes are detected.  Those fields the SetProperty and OnPropertyChanged methods were implemented from the [MVVM toolkit](https://learn.microsoft.com/en-us/dotnet/communitytoolkit/mvvm/). 
+
+
+### IDatabaseService Interface
+
+The original source code had a [RealmService](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs#L8) class that was used to interact with the Realm Atlas Device SDK and was a static class.  This was replaced with an [IDatabaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/IDatabaseService.cs#L6) interface and a [CouchbaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs) class that implements the interface.  The `CouchbaseService` class is used to interact with the Couchbase Lite SDK. 
+
+### Implementation of CouchbaseService 
+A heavy amount of code was refactored to implement the [CouchbaseService](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs) from the original [RealmService](https://github.com/mongodb/template-app-maui-todo/blob/main/RealmTodo/Services/RealmService.cs).  The highlights of those changes are as follows. 
+
+### Init Method 
+
+The Init method was updated to start Couchbase logging and to read in the file from the `capellaConfig.json` file.
+
+```csharp
+Database.Log.Console.Level = LogLevel.Debug;
+Database.Log.Console.Domains = LogDomain.All;
+
+//get the config from disk
+await using var fileStream = await FileSystem.Current.OpenAppPackageFileAsync("capellaConfig.json");
+using StreamReader reader = new(fileStream);
+var fileContent = await reader.ReadToEndAsync();
+AppConfig = JsonSerializer.Deserialize<CouchbaseAppConfig>(
+  fileContent,
+  new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+);
+```
+> **NOTE**
+> For more information on logging in Couchbase Lite, please review the [Documentation](https://docs.couchbase.com/couchbase-lite/current/csharp/troubleshooting-logs.html).
