@@ -9,7 +9,7 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<!-- Display name -->
-		<ApplicationTitle>RealmTodo</ApplicationTitle>
+		<ApplicationTitle>.NET To Do</ApplicationTitle>
 		<!-- App Identifier -->
 		<ApplicationId>com.companyname.realmtodo</ApplicationId>
 		<ApplicationIdGuid>97beaf1e-55c9-4d95-8d33-d42d0a4af62c</ApplicationIdGuid>
