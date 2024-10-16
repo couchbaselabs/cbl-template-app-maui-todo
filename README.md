@@ -264,7 +264,7 @@ if (item != null)
 
 ### Logout method
 
-The `Logout` method is used to remove anything dealing with Query and Replication, and then closes the database.  This will be called when the user logs out from the application.
+The [Logout](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs#L266) method is used to remove anything dealing with Query and Replication, and then closes the database.  This will be called when the user logs out from the application.
 
 ### SetTaskLiveQuery method
 
