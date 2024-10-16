@@ -93,7 +93,7 @@ The authentication of the app is called from the [IAuthenticationService](https:
 
  Authentication is done via the Couchbase Capella App Services Endpoint public [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html) in the CouchbaseService [LoginAsync method](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Services/CouchbaseService.cs#L249) to resolve the SDK differences between Realm SDK and Couchbase Lite SDK without having to refactor large chunks of code. 
 
-> **NOTE**
+> [!NOTE]
 >Registering new users is out of scope of the conversion, so this functionaliy was removed.  Capella App Services allows the creating of Users per endpoint via the [UI](https://docs.couchbase.com/cloud/app-services/user-management/create-user.html#usermanagement/create-app-role.adoc) or the [REST API](https://docs.couchbase.com/cloud/app-services/references/rest_api_admin.html).  For large scale applications it's highly recommended to use a 3rd party [OpendID Connect](https://docs.couchbase.com/cloud/app-services/user-management/set-up-authentication-provider.html) provider. 
 >
 
@@ -133,7 +133,7 @@ AppConfig = JsonSerializer.Deserialize<CouchbaseAppConfig>(
   new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
 );
 ```
-> **NOTE**
+> [!NOTE]
 > For more information on logging in Couchbase Lite, please review the [Documentation](https://docs.couchbase.com/couchbase-lite/current/csharp/troubleshooting-logs.html).
 
 ### InitDatabase Method 
@@ -207,7 +207,7 @@ _replicatorStatusToken = _replicator.AddChangeListener((sender, change) =>
  }
 );
 ```
-> **NOTE**
+> [!NOTE]
 >.NET Developers should review the documentation on Ordering of replication events in the [Couchbase Lite SDK documentation for .NET](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-ord) prior to making decisions on how to setup the replicator.
 >
 
@@ -266,16 +266,13 @@ if (item != null)
 
 The `Logout` method is used to remove anything dealing with Query and Replication, and then closes the database.  This will be called when the user logs out from the application.
 
-
-
 ### SetTaskLiveQuery method
 
 Couchbase Lite doesn't support the [ChangeSet](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet/react-to-changes/#notification-changesets) API that Realm provides for tracking changes in a Realm.  Instead Couchbase Lite has an API called [LiveQuery](https://docs.couchbase.com/couchbase-lite/current/csharp/query-live.html#activating-a-live-query)
 
-
 Couchbase Lite has a different way of handing replication and security than the Atlas Device SDK [Subscription API](https://www.mongodb.com/docs/atlas/device-sdks/sdk/kotlin/sync/subscribe/#subscriptions-overview).  Because of this, some of the code has been simplifed to handle when filtering out the current user tasks vs all tasks in the collection.
 
-> **IMPORTANT**
+> [!IMPORTANT]
 >For a production mobile app, make sure you read the Couchbase Capella App Services [channels](https://docs.couchbase.com/cloud/app-services/channels/channels.html) and [roles](https://docs.couchbase.com/cloud/app-services/user-management/create-app-role.html) documentation to understand the security model it provides. 
 >
 >The Couchbase Lite SDK [Replication Configuration](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-cfg-repl) API also supports [filtering of channels](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-chan) to limit the data that is replicated to the device. 
@@ -298,7 +295,7 @@ internal class UpdatedResults<T> : IResultsChange<T> {
 }
 ```
 
-> **NOTE**
+> [!NOTE]
 > This represents a partial set of functionality that Realm's API provided. It is designed to maintain the application’s operational integrity without necessitating substantial code rewrites or altering the user experience associated with rendering items in the list during addition or deletion processes.
 >
 
@@ -412,7 +409,7 @@ This code runs a live query based on the SubscriptionType passed into the method
 
 If the subscription mode is configured to filter documents by the current user, the query targets documents where the ownerId field matches the user’s ID. In the case of the “All” mode, it retrieves all documents from the data.items collection, sorted by their document IDs. The query is then executed, returning the results as a callback Action<IResultsChange<Item>> object.
 
-> **NOTE**
+> [!NOTE]
 >To replicate the API from Realm, this code had to calculate the deltas (additions, deletions, and updates) by comparing the current query results with the previous list results. This approach introduces additional complexity and requires more code than the original implementation.  Using the LiveQuery API directly would be more efficient, but each time the data is updated, the entire list would be re-rendered.  This could cause performance issues in the application.  
 >
 >There are multiple approaches to how to calculate the deltas.  This example will use more memory in order to save CPU cycles, which in testing on physical devices resulted in better performance on older devices with slower processors.
