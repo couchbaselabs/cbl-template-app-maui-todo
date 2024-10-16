@@ -1,10 +1,8 @@
 using System.Text.Json;
-
 using Couchbase.Lite;
 using Couchbase.Lite.Logging;
 using Couchbase.Lite.Query;
 using Couchbase.Lite.Sync;
-
 using RealmTodo.Data;
 using RealmTodo.Models;
 
@@ -39,7 +37,7 @@ namespace RealmTodo.Services
         //used for calculating RequestChanges
         private Dictionary<string, Item> _previousItems = new Dictionary<string, Item>();
 
-        public SubscriptionType? CurrentSubscriptionType = null; 
+        public SubscriptionType? CurrentSubscriptionType = null;
 
         //current authenticated user
         public User? CurrentUser { get; private set; }
@@ -65,18 +63,19 @@ namespace RealmTodo.Services
             var editDocument = _taskCollection!.GetDocument(item.Id);
             if (editDocument != null)
             {
+                ValidateState(item);
                 var mutEditDocument = editDocument.ToMutable();
                 mutEditDocument.SetString("summary", item.Summary);
                 _taskCollection!.Save(mutEditDocument);
-            } else
+            }
+            else
             {
                 //create new document
                 var jsonString = item.ToJson();
                 var mutableDocument = new MutableDocument(item.Id, jsonString);
-                _taskCollection!.Save(mutableDocument);    
+                _taskCollection!.Save(mutableDocument);
             }
         }
-
 
 
         /// <summary>
@@ -146,6 +145,7 @@ namespace RealmTodo.Services
             {
                 return;
             }
+
             //
             //check state to validate we have a valid user and valid config for sync with Capella App Services
             //
@@ -159,6 +159,7 @@ namespace RealmTodo.Services
                 throw new InvalidOperationException(
                     "Can't read application configuration file, can't get Capella App Services URL without reading in config.");
             }
+
             //calculate the database name for the current logged-in user
             var username = CurrentUser!.Username.Replace("@", "-").Replace(".", "-");
             var databaseName = $"tasks-{username}";
@@ -226,7 +227,7 @@ namespace RealmTodo.Services
         {
             return item.OwnerId == CurrentUser!.Username;
         }
-        
+
         /// <summary>
         /// Authenticates the user with the provided email and password.
         /// </summary>
@@ -266,9 +267,9 @@ namespace RealmTodo.Services
         {
             //clear the previous items
             CurrentUser = null;
-            CurrentSubscriptionType = null; 
+            CurrentSubscriptionType = null;
             _previousItems.Clear();
-            
+
             //clean up query stuff
             _queryListenerToken?.Remove();
             _queryListenerToken = null;
@@ -303,9 +304,9 @@ namespace RealmTodo.Services
         /// </remarks>
         public void PauseSync()
         {
-            _replicator!.Stop();     
+            _replicator!.Stop();
         }
-        
+
         /// <summary>
         /// Resumes the synchronization process for the Couchbase replicator.
         /// </summary>
@@ -315,10 +316,10 @@ namespace RealmTodo.Services
         /// </remarks>
         public void ResumeSync()
         {
-            _replicator!.Start();    
+            _replicator!.Start();
         }
-        
-                /// <summary>
+
+        /// <summary>
         /// Retrieves the task list from the Couchbase collection and invokes the provided callback function with the results.
         /// </summary>
         /// <param name="subscriptionType">The type of subscription to determine which tasks to query (Mine or All).</param>
@@ -332,7 +333,7 @@ namespace RealmTodo.Services
             SubscriptionType subscriptionType,
             Action<IResultsChange<Item>> callback)
         {
-            if (CurrentSubscriptionType == null || CurrentSubscriptionType != subscriptionType)
+            if (CurrentSubscriptionType != subscriptionType)
             {
                 var query = (subscriptionType == SubscriptionType.Mine) ? _queryMyTasks : _queryAllTasks;
 
@@ -423,7 +424,7 @@ namespace RealmTodo.Services
                 CurrentSubscriptionType = subscriptionType;
             }
         }
-        
+
         /// <summary>
         /// Toggles the completion status of a task in the Couchbase collection.
         /// </summary>
@@ -466,8 +467,8 @@ namespace RealmTodo.Services
         /// </remarks>
         private void ValidateUserCollection()
         {
-            if (CurrentUser == null){
-        
+            if (CurrentUser == null)
+            {
                 throw new InvalidOperationException("User must be authenticated");
             }
 
@@ -476,7 +477,7 @@ namespace RealmTodo.Services
                 throw new InvalidOperationException("Collection can't be null, not initialized");
             }
         }
-        
+
         /// <summary>
         /// Validates the current state of the service, ensuring the user is authenticated,
         /// the Couchbase collection is initialized, and the item belongs to the current user.
