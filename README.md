@@ -123,7 +123,6 @@ The Init method was updated to start Couchbase logging and to read in the file f
 
 ```csharp
 Database.Log.Console.Level = LogLevel.Debug;
-Database.Log.Console.Domains = LogDomain.All;
 
 //get the config from disk
 await using var fileStream = await FileSystem.Current.OpenAppPackageFileAsync("capellaConfig.json");
