@@ -174,6 +174,8 @@ var queryMyTasks = $"{query} WHERE item.ownerId = '{CurrentUser!.Username}'";
 _queryMyTasks = _database.CreateQuery(queryMyTasks);
 ```
 
+Caching queries aren't required, but can save memory and CPU time if the same query is ran multiple times.  
+
 #### Replicator Setup 
 Next the [Replication Configuration](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-cfg-repl) is created using the Endpoint URL that is provided from the resource file described earlier in this document.  The configuration is setup in a [PushAndPull](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-cfg-sync) configuration which means it will pull changes from the remote database and push changes to Capella App Services. By setting continuous to true the replicator will continue to listen for changes and replicate them.  Authentication is added to only sync information based on the current authenticated user.  
 
