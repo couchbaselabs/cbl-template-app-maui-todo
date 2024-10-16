@@ -225,7 +225,7 @@ If your app is offline for long periods of time, option 2 might not fit your sec
 
 To further harden the security, the App Service sync script could check the ownerId field and use the [requireUser](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html#handling-modification) function to deny writes from other users.  This would secure the data from bugs in the application and double validate that writes are only performed by the owner of the task.
 
-In this app conversion, we will update the business logic in the app to validate that a user can only modify it's own tasks.
+In this app conversion, the business logic in the app was updated to validate that a user can only modify it's own tasks.
 
 ### AddTask method
 
