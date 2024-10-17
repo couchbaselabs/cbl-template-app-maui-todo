@@ -1,12 +1,28 @@
 ﻿# Conversion Example of MongoDb Atlas Device Sync to Couchbase Lite for DotNet Maui Developers 
 
-The original version of this [application](https://github.com/mongodb/template-app-maui-todo)  was built with the [MongoDb Atlas Device SDK](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet/) and [Atlas Device Sync](https://www.mongodb.com/docs/atlas/app-services/sync/). 
+The original version of this [application](https://github.com/mongodb/template-app-maui-todo) was built with the [MongoDb Atlas Device SDK for .NET](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet/) and [Atlas Device Sync](https://www.mongodb.com/docs/atlas/app-services/sync/). 
 
 > [!NOTE]
 >The original application is a basic To Do list.  The original source code has it's own opinionated way of implementing an DotNet Maui application and communicating between different layers.  This conversion is by no means a best practice for Maui development or a show case on how to properly communicate between layers of an application.  It's more of an example of the process that a developer will have to go through to convert an application from one SDK to another.
 >
 
 Minor UI updates were made to replace references to Realm with Couchbase. Colors and icons were also updated to align with the Couchbase brand. The project’s name and namespace were left unchanged, as the goal is to provide a conversion example.
+
+# Requirements
+- [.NET](https://dotnet.microsoft.com/en-us/) and [.NET MAUI workloads](https://dotnet.microsoft.com/en-us/learn/maui/first-app-tutorial/install) installed on your development machine and your and your development environment configured to run Maui applications.
+- Basic [.NET Maui](https://dotnet.microsoft.com/en-us/apps/maui) knowledge
+- Xcode installed for iOS Debugging 
+- An capable IDE (JetBrains Rider, Visual Studio, or Visual Studio Code)
+- Understanding of the [Realm SDK for .NET](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet)
+
+
+# Fetching the App Source Code
+
+Clone this repository from GitHub using the command line or your Git client:
+
+```bash
+git clone https://github.com/couchbaselabs/cbl-template-app-maui-todo.git
+```
 
 # Capella Configuration
 
@@ -194,6 +210,10 @@ var collectionConfig = new CollectionConfiguration();
 replicatorConfig.AddCollection(_taskCollection, collectionConfig);
 ```
 
+> [!TIP]
+>The Couchbase Lite SDK [Replication Configuration](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-cfg-repl) API also supports [filtering of channels](https://docs.couchbase.com/couchbase-lite/current/swift/replication.html#lbl-repl-chan) to limit the data that is replicated to the device. 
+>
+
 #### Replicator Status 
 A change listener for [Replication Status](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-status) is created and is used to track any errors that might happen from replication, which is then logged to the console.
 
@@ -207,25 +227,21 @@ _replicatorStatusToken = _replicator.AddChangeListener((sender, change) =>
  }
 );
 ```
-> [!NOTE]
->.NET Developers should review the documentation on Ordering of replication events in the [Couchbase Lite SDK documentation for .NET](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-ord) prior to making decisions on how to setup the replicator.
+> [!IMPORTANT]
+>.NET Developers should review the [Couchbase Lite SDK documentation for .NET](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-ord) prior to making decisions on how to setup the replicator.
 >
 
 ### Handling Security of Updates/Delete
 
 In the original app, Realm was handling the security of updates to validate that the current logged in user can update its own tasks, but not other users's task.  When the switch in the application is used to see All Tasks using different subscription, they would have read-only access to the objects.  
 
-Couchbase Lite doesn't have the same security model.  Here are two ways to handle this in conversion:
+Couchbase Lite doesn't have the same security model.  In this application the following approach was taken.  
 
-1. Write custom logic in your application to validate that write access is only allowed by users that own the tasks.  This is independant of how the data is syncronized.
+The code of the application was modified to validate that write access is only allowed by users that own the tasks and the Data Access and Validation script was added in the Capella setup instructions that limits whom can write updates.
 
-2. Allow the write to the database even though the user doesn't have access, and then let the replicator sync the changes.  In the App Services [Access Control and Data Validation](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html) [sync function](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html), check the security there and then deny the write.  Use a Custom [Replication Conflict Resolution](https://docs.couchbase.com/couchbase-lite/current/csharp/conflict.html#custom-conflict-resolution) to receive the result in your applications code and then revert the change.
-
-If your app is offline for long periods of time, option 2 might not fit your security requirements. Because this app offers an offline mode, option 1 was selected for the security model in the conversion.
-
-To further harden the security, the App Service sync script could check the ownerId field and use the [requireUser](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html#handling-modification) function to deny writes from other users.  This would secure the data from bugs in the application and double validate that writes are only performed by the owner of the task.
-
-In this app conversion, the business logic in the app was updated to validate that a user can only modify it's own tasks.
+> [!TIP]
+> Develoeprs can use a Custom [Replication Conflict Resolution](https://docs.couchbase.com/couchbase-lite/current/csharp/conflict.html#custom-conflict-resolution) to receive the result in your applications code and then revert the change.
+>
 
 ### AddTask method
 
@@ -273,9 +289,7 @@ Couchbase Lite doesn't support the [ChangeSet](https://www.mongodb.com/docs/atla
 Couchbase Lite has a different way of handing replication and security than the Atlas Device SDK [Subscription API](https://www.mongodb.com/docs/atlas/device-sdks/sdk/kotlin/sync/subscribe/#subscriptions-overview).  Because of this, some of the code has been simplifed to handle when filtering out the current user tasks vs all tasks in the collection.
 
 > [!IMPORTANT]
->For a production mobile app, make sure you read the Couchbase Capella App Services [channels](https://docs.couchbase.com/cloud/app-services/channels/channels.html) and [roles](https://docs.couchbase.com/cloud/app-services/user-management/create-app-role.html) documentation to understand the security model it provides. 
->
->The Couchbase Lite SDK [Replication Configuration](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-cfg-repl) API also supports [filtering of channels](https://docs.couchbase.com/couchbase-lite/current/csharp/replication.html#lbl-repl-chan) to limit the data that is replicated to the device. 
+>Developers should review the Couchbase Capella App Services [channels](https://docs.couchbase.com/cloud/app-services/channels/channels.html) and [roles](https://docs.couchbase.com/cloud/app-services/user-management/create-app-role.html) documentation to understand the security model it provides prior to planning an application migration. 
 >
 
 For the conversion of this app, the decision was made to include code that functions similar to the Realm SDK ChangeSet API.  A new interface and class implementations where added to the [ResultsChange.cs](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/RealmTodo/Data/RequestChange.cs) file.
@@ -436,7 +450,6 @@ if (item != null)
   _taskCollection!.Save(mutableDocument);
 }
 ```
-
 ## ViewModel changes
 
 ### EditVideModel
@@ -517,8 +530,6 @@ More Information
 ----------------
 - [Couchbase Lite for .NET documentation](https://docs.couchbase.com/couchbase-lite/current/csharp/quickstart.html)
 - [Couchbase Capella App Services documentation](https://docs.couchbase.com/cloud/app-services/index.html)
-
-
 
 Disclaimer
 ----------

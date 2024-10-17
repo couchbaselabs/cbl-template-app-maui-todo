@@ -5,21 +5,15 @@ This guide provides step-by-step instructions for configuring a Couchbase Capell
 
 Follow the full set of directions for [setting up a free account](https://docs.couchbase.com/cloud/get-started/create-account.html).
 
-## Setup App Services instance
+## Create new Bucket/Scope/Collection for Data Storage
 
-Once you have followed the directions for setting up your cluster, follow the [directions for setting up App Services](https://docs.couchbase.com/cloud/get-started/create-account.html#app-services).
-
-## Create Scope/Collection for Data Storage
-
-In these directions, we will use the pre-existing `travel-sample` bucket to create a new Scope and Collection for storing data.  This will allow us to store data in a separate Scope and Collection from the travel-sample data that is already present in the bucket.  Advanced users can create a new bucket if they prefer to keep the data separate. 
-
-When you log into Capella you should be at the Operational Cluster tab.  Click on cluster listed in the provided cluster listing.  The Home tab will appear and a listing of options should be presented. 
+In these directions, we will create a new Bucket, Scope, and Collection for storing data.  When you log into Capella you should be at the Operational Cluster tab.  Click on cluster listed in the provided cluster listing.  The Home tab will appear and a listing of options should be presented. 
 
 Click on the Data Tools tab.  Once there, click the "+ Create" button on the left side of the navigation menu to create a new Scope and Collection. 
 
 The "Create a Bucket, Scope, and Collection" dialog will appear.  Enter the following information:
 
-1. Select "Existing" and make sure the bucket is selected is `travel-sample`
+1. Select "New" and enter a bucket name in in the New Bucket Name field.  For example, enter `Todo`
 
 2. For Scope, select New and enter the name of `data`
 
@@ -27,35 +21,47 @@ The "Create a Bucket, Scope, and Collection" dialog will appear.  Enter the foll
 
 Click the Create button to create the new Scope and Collection.
 
+## Setup App Services instance
+
+Once you have followed the directions for setting up your bucket, follow the [directions for setting up App Services](https://docs.couchbase.com/cloud/get-started/create-account.html#app-services).
+
 ## Setup App Services Endpoint
 
 Click the App Services tab and select your created App Service from the Setup App Service Instance step.  The App Endpoints listing should appear.  Click on the + Create App Endpoint to create a new endpoint.
 
-When the Create App Endpoint screen appears enter the following information:
+When the Create App Endpoint screen appears enter the following information based on the new bucket you created above:
 
 - For the Name field enter `tasks`
-- For the Bucket, select `travel-sample`
+- For the Bucket, select `Todo`
 - For the Scope, select `data`
 - Under "Choose collections to link", select the Link option for the `tasks` collection
 
 Click the Create button to create the new App Endpoint.  Note it may take a few minutes for your App Endpoint to be created. 
 
+## Setup Access Control and Validation
+
+The [Access Control and Data Validation](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html) script can be used to setup to validate that data is only written by the owner of the task.
+
+From the App Endpoints list, click on your newly created App Endpoint `tasks`.  From the Access Control and Validation screen, click the linked collections `tasks`.  Follow the following steps:
+
+- Click the Import from File button.  
+- Browse to the repo where you downloaded the code and select the [sync.js](https://github.com/couchbaselabs/cbl-template-app-maui-todo/blob/main/sync.js) file located in the root of the project.  Click the Import button to import the Sync Function. 
+- Click the Save button to save the Sync Function.
+- Once the alert is displayed that the Sync Function was saved, click the Settings tab.
+- Click the `Resume App Endpoint` button under the Resume App Endpoint section. 
+
+This script achieves the business rule that only users that own a document can modify it checking the ownerId field and use the [requireUser](https://docs.couchbase.com/cloud/app-services/deployment/access-control-data-validation.html#handling-modification) function to deny writes from other users.  This helps secure the data from bugs in the application and validate that writes are only performed by the owner of the task.
+
 ## Setup App Endpoint Users
 
-From the App Endpoints list, click on your newly created App Endpoint `tasks`.
-
-From the Access Control and Validation screen click the link at the top below the header to "Resume app endpoint". (Note that resuming the app endpoint can take up to 60 seconds).
-
-Click on the App Users tab from the navigation menu on the left and then click the "+ Create App Users" button.
+Click on the Security tab.  Now click on the App Users tab from the navigation menu on the left and then click the "+ Create App Users" button.
 
 Enter the following information:
 
 - For the App User Name enter: `demo1@example.com`
 - For the App User Password enter:  `P@ssw0rd12`
 
-Click the chevron for "Configure Access Grants".  Now under the "Assign Channels" enter the channel name `tasks` under the "Admin Channels" column.  Click the "Create App User" button to create the App User.
-
-Follow these steps to create a second App User with the following information:
+Click the "Create App User" button to create the App User.  Follow these steps to create a second App User with the following information:
 
 - For the App User Name enter: `demo2@example.com`
 - For the App User Password enter:  `P@ssw0rd12`
@@ -81,7 +87,6 @@ When done it should look similar to the following:
   "endpointUrl": "wss://xxxxxxxxxxxx.apps.cloud.couchbase.com:4984/tasks",
   "capellaUrl": "https://cloud.capella.com"
 }
-
 ```
 
 > **WARNING**
