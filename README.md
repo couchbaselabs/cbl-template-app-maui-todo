@@ -15,6 +15,12 @@ Minor UI updates were made to replace references to Realm with Couchbase. Colors
 - An capable IDE (JetBrains Rider, Visual Studio, or Visual Studio Code)
 - Understanding of the [Realm SDK for .NET](https://www.mongodb.com/docs/atlas/device-sdks/sdk/dotnet)
 
+> [!IMPORTANT]
+>Latest versions of .NET and Maui might have issues depending on what version of XCode you have installed.  Please refer to this [posting](https://github.com/dotnet/maui/issues/24981).
+>
+> - If you have .NET Maui version 8.0.402.0 installed, you must have Xcode 15.4 installed.
+> - If you have > 8.0.402.1 installed, you will need XCode 16 installed.
+> This is a .NET issue, not an issue with the application.
 
 # Fetching the App Source Code
 

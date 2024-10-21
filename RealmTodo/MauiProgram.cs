@@ -27,16 +27,15 @@ public static class MauiProgram
         builder.Services.AddSingleton<IDatabaseService, CouchbaseService>();
         builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
         
-        //add view models
-        builder.Services.AddTransient <EditItemViewModel>();
-        builder.Services.AddTransient <ItemsViewModel>();
         builder.Services.AddTransient <LoginViewModel>();
+        builder.Services.AddTransient <LoginPage>(); 
         
-        //add the views
-        builder.Services.AddTransient <EditItemPage>();
+        builder.Services.AddTransient <ItemsViewModel>();
         builder.Services.AddTransient <ItemsPage>();
-        builder.Services.AddTransient <LoginPage>();
         
+        builder.Services.AddTransient <EditItemViewModel>();
+        builder.Services.AddTransient <EditItemPage>();
+   
         return builder.Build();
     }
 }
