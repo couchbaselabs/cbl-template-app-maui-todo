@@ -21,6 +21,11 @@ Minor UI updates were made to replace references to Realm with Couchbase. Colors
 > - If you have .NET Maui version 8.0.402.0 installed, you must have Xcode 15.4 installed.
 > - If you have > 8.0.402.1 installed, you will need XCode 16 installed.
 > This is a .NET issue, not an issue with the application.
+>
+> Other issues with System.TypeLoadException have been reported.  This seems to be an issue with .NET and Maui per this [issue](https://github.com/CommunityToolkit/Maui/issues/2148#issuecomment-2414682169).  
+>
+>Based on Microsoft's latest updates requiring XCode 16, it's highly recommended you use the latest version of XCode 16 and .NET Maui 8 if you are running into issues.
+>
 
 # Fetching the App Source Code
 
